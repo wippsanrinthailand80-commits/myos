@@ -1,0 +1,52 @@
+name: Build MyOS (Linux From Scratch)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison flex texinfo gawk m4 \
+            libmpfr-dev libmpc-dev libgmp-dev wget curl git rsync file \
+            python3 perl sed grep findutils diffutils xz-utils bzip2 gzip tar
+
+      - name: Set up build dirs
+        run: |
+          sudo mkdir -p /mnt/lfs
+          sudo chown -R $USER:$USER /mnt/lfs
+          echo "LFS=/mnt/lfs" >> $GITHUB_ENV
+          echo "MYOS_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "MAKEFLAGS=-j$(nproc)" >> $GITHUB_ENV
+
+      - name: Cache sources
+        uses: actions/cache@v4
+        with:
+          path: sources
+          key: lfs-sources-12.4
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: /mnt/lfs/tools
+          key: lfs-tools-${{ runner.os }}-${{ hashFiles('scripts/chapter5.sh') }}
+
+      - name: Build cross toolchain (Chapter 5)
+        run: bash scripts/chapter5.sh
+
+      - name: Upload toolchain artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lfs-tools
+          path: /mnt/lfs/tools
+          retention-days: 7
