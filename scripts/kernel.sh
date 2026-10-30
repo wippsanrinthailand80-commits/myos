@@ -16,5 +16,5 @@ make defconfig
   --enable CONFIG_BLK_DEV_INITRD 2>/dev/null || true
 make olddefconfig
 make -j"$(nproc)"
-cp arch/$(uname -m)/boot/bzImage "$MYOS_ROOT/rootfs/vmlinuz" 2>/dev/null || cp arch/$(uname -m)/boot/Image "$MYOS_ROOT/rootfs/vmlinuz" 2>/dev/null || true
+if [ -f arch/x86/boot/bzImage ]; then cp arch/x86/boot/bzImage "$MYOS_ROOT/rootfs/vmlinuz"; elif [ -f arch/x86_64/boot/bzImage ]; then cp arch/x86_64/boot/bzImage "$MYOS_ROOT/rootfs/vmlinuz"; elif [ -f arch/arm64/boot/Image ]; then cp arch/arm64/boot/Image "$MYOS_ROOT/rootfs/vmlinuz"; fi
 echo "Kernel built"
