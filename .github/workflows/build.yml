@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -19,7 +17,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential bison flex texinfo gawk m4 \
             libmpfr-dev libmpc-dev libgmp-dev wget curl git rsync file \
-            python3 perl sed grep findutils diffutils xz-utils bzip2 gzip tar
+            python3 perl sed grep findutils diffutils xz-utils bzip2 gzip tar \
+            cpio qemu-system-x86
 
       - name: Set up build dirs
         run: |
@@ -44,9 +43,24 @@ jobs:
       - name: Build cross toolchain (Chapter 5)
         run: bash scripts/chapter5.sh
 
-      - name: Upload toolchain artifact
+      - name: Assemble system + kernel
+        run: bash scripts/assemble.sh
+
+      - name: Boot test in QEMU
+        timeout-minutes: 5
+        run: |
+          set +e
+          timeout 120 qemu-system-x86_64 -kernel rootfs/vmlinuz -initrd rootfs/initramfs.cpio.gz \
+            -append "console=ttyS0" -nographic -m 512 > /tmp/qemu.log 2>&1
+          echo "=== QEMU log tail ==="
+          tail -40 /tmp/qemu.log
+          grep -q "MyOS init starting" /tmp/qemu.log && echo "BOOT OK" || echo "BOOT FAIL"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lfs-tools
-          path: /mnt/lfs/tools
+          name: myos-image
+          path: |
+            rootfs/vmlinuz
+            rootfs/initramfs.cpio.gz
           retention-days: 7
